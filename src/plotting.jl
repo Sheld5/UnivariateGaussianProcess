@@ -1,6 +1,6 @@
 using Plots
 
-function plot_state(data::GAUSS_PROC_DATA; points::Int = 200, legend = true, legend_position = :bottomright)
+function plot_state(data; points::Int = 200, legend = true, legend_position = :bottomright)
     x_range = range(data.bounds[1], data.bounds[2]; length = points)
     data_len = length(data.points.x)
     
