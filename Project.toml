@@ -1,0 +1,7 @@
+name = "UnivariateGaussianProcess"
+uuid = "eb9e8619-f621-4515-8b3f-27db8b644980"
+authors = ["Šimon Soldát"]
+version = "0.1.0"
+
+[compat]
+julia = "1.5"
