@@ -1,0 +1,4 @@
+[deps]
+BlackBoxOptim = "a134a8b2-14d6-55f6-9291-3336d3ab0209"
+Literate = "98b081ad-f1c9-55d3-8b20-4c87d4299306"
+UnivariateGaussianProcess = "eb9e8619-f621-4515-8b3f-27db8b644980"

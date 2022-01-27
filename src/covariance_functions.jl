@@ -1,4 +1,3 @@
-
 export matern1, matern3, matern5, sq_exp
 
 """

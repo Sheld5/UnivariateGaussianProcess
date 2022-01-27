@@ -1,7 +1,5 @@
 module UnivariateGaussianProcess
 
-export DATA_POINTS, GAUSS_PROC_DATA, gaussian_process, func_est_μ, func_est_σ
-
 using DocStringExtensions
 using LinearAlgebra
 using Optim
@@ -9,6 +7,9 @@ using Optim
 include("covariance_functions.jl")
 include("acquisition_functions.jl")
 include("plotting.jl")
+
+export DATA_POINTS, GAUSS_PROC_DATA
+export gaussian_process, func_est_μ, func_est_σ, get_max
 
 
 
@@ -83,8 +84,8 @@ end
         acq_func::Function; # x::Real, data::GAUSS_PROC_DATA -> fitness::Real
         noise::Real = 1e-8, # should be > 0
         init_mean::Function = (x) -> 0., # x::Real -> y::Real
-        iters::Int = 1,
-        points::DATA_POINTS = DATA_POINTS(collect(bounds), obj_func.(collect(bounds))),
+        evals::Int = 1,
+        points::Union{DATA_POINTS, Nothing} = nothing,
         plot::Bool = true,
         plot_only_final::Bool = false,
     )
@@ -99,6 +100,7 @@ See also [`GAUSS_PROC_DATA`](@ref).
 
 ```julia-repl
 julia> data = gaussian_process(sin, (-π, π), matern1, ucb; iters=20, noise=1e-4, init_mean = (x) -> x);
+
 ```
 
 # Troubleshooting
@@ -116,11 +118,19 @@ function gaussian_process(
     acq_func::Function; # x::Real, data::GAUSS_PROC_DATA -> fitness::Real
     noise::Real = 1e-4, # should be > 0
     init_mean::Function = (x) -> 0., # x::Real -> y::Real
-    iters::Int = 1,
-    points::DATA_POINTS = DATA_POINTS(collect(bounds), obj_func.(collect(bounds))),
+    points::Union{DATA_POINTS, Nothing} = nothing,
+    evals::Int = 1, # has to be >= 1
     plot::Bool = true,
     plot_only_final::Bool = false,
 )
+    evals <= 0 && throw(ArgumentError("`evals` has to be >= 1"))
+
+    if points === nothing
+        evals < 2 && throw(ArgumentError("`evals` has to be >= 2 if `points === nothing`"))
+        points = DATA_POINTS(collect(bounds), obj_func.(collect(bounds)))
+        evals -= 2
+    end
+
     # init data
     init_K = create_kernel(cov_func, points.x; noise)
     data = GAUSS_PROC_DATA(
@@ -135,7 +145,50 @@ function gaussian_process(
         init_mean,
     )
 
-    for _ in 1:iters
+    return gaussian_process(data; evals, plot, plot_only_final)
+end
+
+"""
+    gaussian_process(
+        data::GAUSS_PROC_DATA;
+        evals::Int = 1,
+        plot::Bool = true,
+        plot_only_final::Bool = false,
+    )
+
+Continue in Bayesian Optimization with Gaussian Process surrogate model given the data from the previous run.
+
+Return a structure containing all information about the performed optimization. (::GAUSS_PROC_DATA)
+
+See also [`GAUSS_PROC_DATA`](@ref).
+
+# Example
+
+```julia-repl
+julia> data = gaussian_process(sin, (-π, π), matern1, ucb; iters=20, noise=1e-4, init_mean = (x) -> x);
+
+julia> data = gaussian_process(data; iters=20);
+
+```
+
+# Troubleshooting
+
+If you get error about the kernel not being positive definite or sqrt being called on a negative value,
+increase the objective function noise.
+    
+The objective function noise should not be set too close to zero
+to prevent these issues arising because of numerical errors.
+"""
+function gaussian_process(
+    data::GAUSS_PROC_DATA;
+    evals::Int = 1, # has to be >= 0
+    plot::Bool = true,
+    plot_only_final::Bool = false,
+)
+    evals < 0 && throw(ArgumentError("`evals` has to be >= 1"))
+    evals == 0 && return data
+
+    for _ in 1:evals
         plot && (plot_only_final || plot_state(data))
 
         # choose new point to evaluate
@@ -228,6 +281,28 @@ function func_est_σ(x::Real, data::GAUSS_PROC_DATA)
     K_x = data.cov_func.(x, data.points.x)
 
     return sqrt(K_x_x - K_x' * data.inv_K * K_x)
+end
+
+"""
+    get_max(data::GAUSS_PROC_DATA)
+
+Return the best-so-far maximum found by the Bayesian optimization.
+
+See also [`GAUSS_PROC_DATA`](@ref).
+
+# Example
+
+```julia-repl
+julia> data = gaussian_process(sin, (-π, π), matern1, ucb; iters=20, init_mean = (x) -> x);
+
+julia> get_max(data)
+(1.575360217679531, 0.9999895854680737)
+```
+"""
+function get_max(data::GAUSS_PROC_DATA)
+    points = data.points
+    max_i = argmax(points.y)
+    return points.x[max_i], points.y[max_i]
 end
 
 

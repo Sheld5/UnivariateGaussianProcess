@@ -9,4 +9,4 @@ This package has been created as a semestral task for "Julia for Optimization an
 - `src\`: the source code
 - `scripts\`: an example usage
 - `test\`: unit tests
-- `report\`: the semestral task report 
+- `report\`: the semestral task report

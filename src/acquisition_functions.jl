@@ -1,3 +1,4 @@
+using Distributions
 
 export ucb, poi, ei
 

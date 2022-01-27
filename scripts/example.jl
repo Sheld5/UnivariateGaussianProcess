@@ -1,6 +1,7 @@
 using Revise
 using UnivariateGaussianProcess
 
+# An example usage of the package.
 function run_gp()
     obj_func = sin
     bounds = (-π, π)
