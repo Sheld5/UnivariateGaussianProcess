@@ -2,6 +2,7 @@ module UnivariateGaussianProcess
 
 export DATA_POINTS, GAUSS_PROC_DATA, gaussian_process, func_est_μ, func_est_σ
 
+using DocStringExtensions
 using LinearAlgebra
 using Optim
 
@@ -13,24 +14,61 @@ include("plotting.jl")
 
 # DATA STRUCTURES - - - - - - - -
 
+"""
+Data about previous evaluations of the objective function.
+
+$(TYPEDFIELDS)
+"""
 struct DATA_POINTS
+    "Points of the objective function domain at which the function has been evaluated."
     x::AbstractArray{<:Real}
+    "The values of the objective function evaluations at these points of the domain."
     y::AbstractArray{<:Real}
 end
 
+"""
+All data about the performed Bayesian Optimization.
+
+$(TYPEDFIELDS)
+"""
 mutable struct GAUSS_PROC_DATA
-    obj_func::Function # x::Real -> y::Real
-    noise::Real # objective function noise (σ)
+    "The objective function.\n
+    x::Real -> y::Real"
+    obj_func::Function
+    "The deviation of the objective function value when evaluated at a single point of the domain."
+    noise::Real
+    "The bounds of the searched interval of the objective function domain."
     bounds::Tuple{<:Real, <:Real}
+    "Data about performed objective function evaluations."
     points::DATA_POINTS
-    cov_func::Function # x1::Real, x2::Real -> cov::Real
-    K::Matrix{<:Real} # K = C + noise^2 * I, where C[i,j] = cov_func(xi, xj)
+    "The covariance function used by the Gaussian Process.\n
+    x1::Real, x2::Real -> cov::Real"
+    cov_func::Function
+    "The kernel matrix of the Gaussian Process.\n
+    K = C + noise^2 * I, where C[i,j] = cov_func(xi, xj)"
+    K::Matrix{<:Real}
+    "The inversed kernel matrix of the Gaussian Process."
     inv_K::Matrix{<:Real}
-    acq_func::Function # x::Real, data::GAUSS_PROC_DATA -> fitness::Real
-    init_mean::Function # x::Real -> y::Real
+    "The used acquisition function.\n
+    x::Real, data::GAUSS_PROC_DATA -> fitness::Real"
+    acq_func::Function
+    "The prior belief about the objective function.\n
+    x::Real -> y::Real"
+    init_mean::Function
 end
 
-# return new_data::GAUSS_PROC_DATA
+"""
+    update_data!(
+        new_point::Tuple{<:Real, <:Real},
+        data::GAUSS_PROC_DATA,
+    )
+
+Augment the data with a new objective function evaluation.
+
+Return the augmented data (::GAUSS_PROC_DATA).
+
+See also [`GAUSS_PROC_DATA`](@ref).
+"""
 function update_data!(
     new_point::Tuple{<:Real, <:Real},
     data::GAUSS_PROC_DATA,
@@ -48,7 +86,26 @@ end
 
 # GAUSSIAN PROCESS - - - - - - - -
 
-# return data::GAUSS_PROC_DATA
+"""
+    gaussian_process(
+        obj_func::Function, # x::Real -> y::Real
+        bounds::Tuple{<:Real, <:Real},
+        cov_func::Function, # x1::Real, x2::Real -> cov::Real
+        acq_func::Function; # x::Real, data::GAUSS_PROC_DATA -> fitness::Real
+        noise::Real = 1e-8, # should be > 0
+        init_mean::Function = (x) -> 0., # x::Real -> y::Real
+        iters::Int = 1,
+        points::DATA_POINTS = DATA_POINTS(collect(bounds), obj_func.(collect(bounds))),
+        plot::Bool = true,
+        plot_only_final::Bool = false,
+    )
+
+    Perform Bayesian Optimization with Gaussian Process surrogate model.
+
+    Return a structure containing all information about the performed optimization. (::GAUSS_PROC_DATA)
+
+    See also [`GAUSS_PROC_DATA`](@ref).
+"""
 function gaussian_process(
     obj_func::Function, # x::Real -> y::Real
     bounds::Tuple{<:Real, <:Real},
