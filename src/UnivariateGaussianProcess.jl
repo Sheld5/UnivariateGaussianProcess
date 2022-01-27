@@ -57,18 +57,7 @@ mutable struct GAUSS_PROC_DATA
     init_mean::Function
 end
 
-"""
-    update_data!(
-        new_point::Tuple{<:Real, <:Real},
-        data::GAUSS_PROC_DATA,
-    )
-
-Augment the data with a new objective function evaluation.
-
-Return the augmented data (::GAUSS_PROC_DATA).
-
-See also [`GAUSS_PROC_DATA`](@ref).
-"""
+# return data::GAUSS_PROC_DATA
 function update_data!(
     new_point::Tuple{<:Real, <:Real},
     data::GAUSS_PROC_DATA,
@@ -100,18 +89,32 @@ end
         plot_only_final::Bool = false,
     )
 
-    Perform Bayesian Optimization with Gaussian Process surrogate model.
+Perform Bayesian Optimization with Gaussian Process surrogate model.
 
-    Return a structure containing all information about the performed optimization. (::GAUSS_PROC_DATA)
+Return a structure containing all information about the performed optimization. (::GAUSS_PROC_DATA)
 
-    See also [`GAUSS_PROC_DATA`](@ref).
+See also [`GAUSS_PROC_DATA`](@ref).
+
+# Example
+
+```julia-repl
+julia> data = gaussian_process(sin, (-π, π), matern1, ucb; iters=20, noise=1e-4, init_mean = (x) -> x);
+```
+
+# Troubleshooting
+
+If you get error about the kernel not being positive definite or sqrt being called on a negative value,
+increase the objective function noise.
+    
+The objective function noise should not be set too close to zero
+to prevent these issues arising because of numerical errors.
 """
 function gaussian_process(
     obj_func::Function, # x::Real -> y::Real
     bounds::Tuple{<:Real, <:Real},
     cov_func::Function, # x1::Real, x2::Real -> cov::Real
     acq_func::Function; # x::Real, data::GAUSS_PROC_DATA -> fitness::Real
-    noise::Real = 1e-8, # should be > 0
+    noise::Real = 1e-4, # should be > 0
     init_mean::Function = (x) -> 0., # x::Real -> y::Real
     iters::Int = 1,
     points::DATA_POINTS = DATA_POINTS(collect(bounds), obj_func.(collect(bounds))),
@@ -154,11 +157,72 @@ end
 
 # OBJECTIVE FUNCTION APPROXIMATION - - - - - - - -
 
+"""
+    func_est_μ(x::Real, data::GAUSS_PROC_DATA)
+
+The most probable approximation of the objective function based on the Gaussian Process with the gathered data.
+
+Return the mean of the gaussian distribution describing the objective function value estimated by the Gaussian Process at the given point.
+
+See also [`func_est_σ`](@ref), [`gaussian_process`](@ref), [`GAUSS_PROC_DATA`](@ref).
+
+# Examples
+
+```julia-repl
+julia> data = gaussian_process(sin, (-π, π), matern1, ucb; iters=20, init_mean = (x) -> x);
+
+julia> func_est_μ(1, data)
+0.8406095467907111
+```
+
+```julia-repl
+julia> data = gaussian_process(sin, (-π, π), matern1, ucb; iters=20, init_mean = (x) -> x);
+
+julia> approx_f = (x) -> func_est_μ(x, data);
+
+julia> approx_f(1)
+0.8406095467907111
+
+julia> sin(1)
+0.8414709848078965
+```
+
+(Note that in this example we use the UCB acquisition function
+meaning that our goal is maximizing the objective function
+and not finding its best approximation.)
+"""
 function func_est_μ(x::Real, data::GAUSS_PROC_DATA)
     k_x = data.cov_func.(x, data.points.x)
     return data.init_mean(x) + k_x' * data.inv_K * (data.points.y - data.init_mean.(data.points.x))
 end
 
+"""
+    func_est_σ(x::Real, data::GAUSS_PROC_DATA)
+
+The uncertainty of the objective function approximation.
+
+Return the deviation of the gaussian distribution describing the objective function value estimated by the Gaussian Process at the given point.
+
+See also [`func_est_μ`](@ref), [`gaussian_process`](@ref), [`GAUSS_PROC_DATA`](@ref).
+
+# Examples
+
+```julia-repl
+julia> data = gaussian_process(sin, (-π, π), matern1, ucb; iters=20, init_mean = (x) -> x);
+
+julia> func_est_σ(1, data)
+0.20269550183507606
+```
+
+```julia-repl
+julia> data = gaussian_process(sin, (-π, π), matern1, ucb; iters=20, init_mean = (x) -> x);
+
+julia> uncertainty = (x) -> func_est_σ(x, data);
+
+julia> uncertainty(1)
+0.20269550183507606
+```
+"""
 function func_est_σ(x::Real, data::GAUSS_PROC_DATA)
     K_x_x = data.cov_func(x, x)
     K_x = data.cov_func.(x, data.points.x)

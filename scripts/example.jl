@@ -21,7 +21,7 @@ function run_gp()
         noise,
         init_mean,
         iters = 6,
-        #points,
+        points,
         plot = true,
         plot_only_final = false,
     )
