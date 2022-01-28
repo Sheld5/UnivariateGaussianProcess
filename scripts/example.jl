@@ -21,7 +21,7 @@ function run_gp()
         acq_func;
         noise,
         init_mean,
-        iters = 6,
+        evals = 6,
         points,
         plot = true,
         plot_only_final = false,

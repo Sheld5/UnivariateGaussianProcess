@@ -1,6 +1,5 @@
 using Test
-
-include("../src/UnivariateGaussianProcess.jl")
+using UnivariateGaussianProcess
 
 global atol = 1e-8
 
